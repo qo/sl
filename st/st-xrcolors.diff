@@ -1,0 +1,176 @@
+Common subdirectories: st/.git and xr/.git
+diff -up st/config.def.h xr/config.def.h
+--- st/config.def.h	2023-11-07 19:04:53.480994106 +0300
++++ xr/config.def.h	2023-11-07 21:37:30.595982421 +0300
+@@ -114,14 +114,6 @@ static const char *colorname[] = {
+ 	"magenta",
+ 	"cyan",
+ 	"white",
+-
+-	[255] = 0,
+-
+-	/* more colors can be added after 255 to use with DefaultXX */
+-	"#cccccc",
+-	"#555555",
+-	"gray90", /* default foreground colour */
+-	"black", /* default background colour */
+ };
+ 
+ 
+@@ -129,10 +121,10 @@ static const char *colorname[] = {
+  * Default colors (colorname index)
+  * foreground, background, cursor, reverse cursor
+  */
+-unsigned int defaultfg = 258;
+-unsigned int defaultbg = 259;
+-unsigned int defaultcs = 256;
+-static unsigned int defaultrcs = 257;
++unsigned int defaultfg = 15;
++unsigned int defaultbg = 0;
++unsigned int defaultcs = 0;
++static unsigned int defaultrcs = 15;
+ 
+ /*
+  * Default shape of cursor
+@@ -170,6 +162,26 @@ static unsigned int defaultattr = 11;
+  */
+ static uint forcemousemod = ShiftMask;
+ 
++/* Xresources colors to load at startup */
++ColorPref prefs[] = {
++	{ "*color0",  &colorname[0]  },
++	{ "*color1",  &colorname[1]  },
++	{ "*color2",  &colorname[2]  },
++	{ "*color3",  &colorname[3]  },
++	{ "*color4",  &colorname[4]  },
++	{ "*color5",  &colorname[5]  },
++	{ "*color6",  &colorname[6]  },
++	{ "*color7",  &colorname[7]  },
++	{ "*color8",  &colorname[8]  },
++	{ "*color9",  &colorname[9]  },
++	{ "*color10", &colorname[10] },
++	{ "*color11", &colorname[11] },
++	{ "*color12", &colorname[12] },
++	{ "*color13", &colorname[13] },
++	{ "*color14", &colorname[14] },
++	{ "*color15", &colorname[15] },
++};
++
+ /*
+  * Internal mouse shortcuts.
+  * Beware that overloading Button1 will disable the selection.
+Only in xr: config.h
+Only in xr: st
+Only in xr: st.o
+diff -up st/x.c xr/x.c
+--- st/x.c	2023-11-07 19:04:53.482994106 +0300
++++ xr/x.c	2023-11-07 21:36:08.848983885 +0300
+@@ -1,5 +1,4 @@
+-/* See LICENSE for license details. */
+-#include <errno.h>
++/* See LICENSE for license details. */ #include <errno.h>
+ #include <math.h>
+ #include <limits.h>
+ #include <locale.h>
+@@ -14,6 +13,7 @@
+ #include <X11/keysym.h>
+ #include <X11/Xft/Xft.h>
+ #include <X11/XKBlib.h>
++#include <X11/Xresource.h>
+ 
+ char *argv0;
+ #include "arg.h"
+@@ -45,6 +45,11 @@ typedef struct {
+ 	signed char appcursor; /* application cursor */
+ } Key;
+ 
++typedef struct {
++	char *name;
++	void *dst;
++} ColorPref;
++
+ /* X modifiers */
+ #define XK_ANY_MOD    UINT_MAX
+ #define XK_NO_MOD     0
+@@ -859,8 +864,8 @@ xclear(int x1, int y1, int x2, int y2)
+ void
+ xhints(void)
+ {
+-	XClassHint class = {opt_name ? opt_name : termname,
+-	                    opt_class ? opt_class : termname};
++	XClassHint class = {opt_name ? opt_name : "st",
++	                    opt_class ? opt_class : "St"};
+ 	XWMHints wm = {.flags = InputHint, .input = 1};
+ 	XSizeHints *sizeh;
+ 
+@@ -1135,8 +1140,10 @@ xinit(int cols, int rows)
+ 	pid_t thispid = getpid();
+ 	XColor xmousefg, xmousebg;
+ 
++	/*
+ 	if (!(xw.dpy = XOpenDisplay(NULL)))
+ 		die("can't open display\n");
++	*/
+ 	xw.scr = XDefaultScreen(xw.dpy);
+ 	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
+ 
+@@ -2014,6 +2021,45 @@ run(void)
+ 	}
+ }
+ 
++
++void
++resource_load(XrmDatabase db, char *name, void *dst)
++{
++	char **sdst = dst;
++	
++	char fullname[256];
++	char fullclass[256];
++	char *type;
++	XrmValue ret;
++
++	snprintf(fullname, sizeof(fullname), "%s.%s", opt_name ? opt_name : "st", name);
++	snprintf(fullclass, sizeof(fullclass), "%s.%s", opt_class ? opt_class : "St", name);
++	fullname[sizeof(fullname) - 1] = fullclass[sizeof(fullclass) - 1] = '\0';
++
++	XrmGetResource(db, fullname, fullclass, &type, &ret);
++	if (ret.addr == NULL || strncmp("String", type, 64))
++		return;
++
++	*sdst = ret.addr;
++}
++
++void
++config_init(void)
++{
++	char *resm;
++	XrmDatabase db;
++	ColorPref *p;
++
++	XrmInitialize();
++	resm = XResourceManagerString(xw.dpy);
++	if (!resm)
++		return;
++
++	db = XrmGetStringDatabase(resm);
++	for (p = prefs; p < prefs + LEN(prefs); p++)
++		resource_load(db, p->name, p->dst);
++}
++
+ void
+ usage(void)
+ {
+@@ -2087,6 +2133,12 @@ run:
+ 
+ 	setlocale(LC_CTYPE, "");
+ 	XSetLocaleModifiers("");
++
++	if (!(xw.dpy = XOpenDisplay(NULL)))
++		die("Can't open display\n");
++
++	config_init();
++	
+ 	cols = MAX(cols, 1);
+ 	rows = MAX(rows, 1);
+ 	tnew(cols, rows);
+Only in xr: x.o
