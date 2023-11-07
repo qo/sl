@@ -97,7 +97,7 @@ diff -up dwm/drw.h xr/drw.h
  Cur *drw_cur_create(Drw *drw, int shape);
 diff -up dwm/dwm.c xr/dwm.c
 --- dwm/dwm.c	2023-11-07 18:57:30.085002047 +0300
-+++ xr/dwm.c	2023-11-07 16:59:40.083908860 +0300
++++ xr/dwm.c	2023-11-07 19:44:09.544982834 +0300
 @@ -36,6 +36,7 @@
  #include <X11/Xlib.h>
  #include <X11/Xproto.h>
@@ -127,13 +127,15 @@ diff -up dwm/dwm.c xr/dwm.c
  
  /* variables */
  static const char broken[] = "broken";
-@@ -2140,6 +2148,41 @@ zoom(const Arg *arg)
+@@ -2140,6 +2148,43 @@ zoom(const Arg *arg)
  	pop(c);
  }
  
 +void
 +resource_load(XrmDatabase db, char *name, void *dst)
 +{
++	cha *sdst = dst;
++	
 +	char fullname[256];
 +	char *type;
 +	XrmValue ret;
@@ -144,7 +146,7 @@ diff -up dwm/dwm.c xr/dwm.c
 +	XrmGetResource(db, fullname, "*", &type, &ret);
 +	if (!(ret.addr == NULL || strncmp("String", type, 64)))
 +		strcpy(sdst, ret.addr);
-+	}
++}
 +
 +void
 +load_xresources(void)
@@ -169,7 +171,7 @@ diff -up dwm/dwm.c xr/dwm.c
  int
  main(int argc, char *argv[])
  {
-@@ -2152,6 +2195,8 @@ main(int argc, char *argv[])
+@@ -2152,6 +2197,8 @@ main(int argc, char *argv[])
  	if (!(dpy = XOpenDisplay(NULL)))
  		die("dwm: cannot open display");
  	checkotherwm();
